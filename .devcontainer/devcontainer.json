@@ -1,0 +1,12 @@
+{
+	"image": "ghcr.io/yaegashi/azdops-storage-account/devcontainer:latest",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-azuretools.vscode-bicep",
+				"ms-vscode.PowerShell",
+				"ms-vscode.vscode-node-azure-pack"
+			]
+		}
+	}
+}
