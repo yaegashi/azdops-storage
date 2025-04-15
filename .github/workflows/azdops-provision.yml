@@ -1,0 +1,113 @@
+name: AZD Ops Provision
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  AZDOPS_TEMPLATE: azdops-storage-account
+  AZD_INPUTS_FILE: .github/azdops/inputs.yml
+  AZD_REMOTE_FILE: .github/azdops/remote.yml
+
+jobs:
+  azdops-provision:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Load AZD Ops input files
+        shell: bash
+        run: |
+          ./azdops.sh config > $GITHUB_ENV
+      - name: Azure CLI
+        id: azure-cli
+        uses: ./.github/actions/azure-cli
+        env:
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      - name: Azure Developer CLI
+        uses: Azure/setup-azd@v2.0.0
+      - name: AZD Provision
+        shell: bash
+        run: |
+          set -x
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          BRANCH_NAME=$(echo "${GITHUB_REF_NAME}" | tr / -)
+          ENV_NAME="${REPO_NAME}_${BRANCH_NAME}"
+          ./azdops.sh env --no-prompt
+          azd env select $ENV_NAME || azd env new $ENV_NAME
+          azd env set AZURE_SUBSCRIPTION_ID "$AZURE_SUBSCRIPTION_ID"
+          azd env set AZURE_LOCATION "$AZURE_LOCATION"
+          azd env set AZURE_PRINCIPAL_ID "$AZURE_PRINCIPAL_ID"
+          if test -z "$AZURE_RESOURCE_GROUP_NAME"; then
+            AZURE_RESOURCE_GROUP_NAME="${ENV_NAME}"
+          fi
+          azd env set AZURE_RESOURCE_GROUP_NAME "$AZURE_RESOURCE_GROUP_NAME"
+          azd env set GITHUB_REPOSITORY_URL "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          azd env set GITHUB_ACTIONS_RUN_URL "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          azd provision --no-prompt
+      - name: AZD Remote Environment
+        shell: bash
+        run: |
+          set -x
+          AZURE_RESOURCE_GROUP_NAME=$(azd env get-value AZURE_RESOURCE_GROUP_NAME)
+          AZURE_PRINCIPAL_ID=$(azd env get-value AZURE_PRINCIPAL_ID)
+          if test -z "$AZD_REMOTE_ENV_STORAGE_ACCOUNT_NAME"; then
+            AZURE_STORAGE_ACCOUNT_NAME=$(azd env get-value AZURE_STORAGE_ACCOUNT_NAME)
+            SCOPE="/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP_NAME/providers/Microsoft.Storage/storageAccounts/$AZURE_STORAGE_ACCOUNT_NAME"
+            az role assignment create --assignee $AZURE_PRINCIPAL_ID --role 'Storage Blob Data Contributor' --scope $SCOPE
+            export AZD_REMOTE_ENV_STORAGE_ACCOUNT_NAME=$AZURE_STORAGE_ACCOUNT_NAME
+            sleep 5
+            ./azdops.sh env --no-prompt
+            azd env refresh
+          fi
+          if test -z "$AZD_REMOTE_ENV_KEY_VAULT_NAME"; then
+            AZURE_KEY_VAULT_NAME=$(azd env get-value AZURE_KEY_VAULT_NAME)
+            az keyvault set-policy --name $AZURE_KEY_VAULT_NAME --object-id $AZURE_PRINCIPAL_ID --secret-permissions get list set
+            sleep 5
+            export AZD_REMOTE_ENV_KEY_VAULT_NAME=$AZURE_KEY_VAULT_NAME
+          fi
+          mkdir -p "${AZD_REMOTE_FILE%/*}"
+          cat <<EOF >$AZD_REMOTE_FILE
+          AZD_REMOTE_ENV_NAME: $(azd env get-value AZURE_ENV_NAME)
+          AZD_REMOTE_ENV_STORAGE_ACCOUNT_NAME: $AZD_REMOTE_ENV_STORAGE_ACCOUNT_NAME
+          AZD_REMOTE_ENV_KEY_VAULT_NAME: $AZD_REMOTE_ENV_KEY_VAULT_NAME
+          EOF
+          GITHUB_README_FILE=.github/README.md
+          AZURE_TENANT_ID=$(azd env get-value AZURE_TENANT_ID)
+          AZURE_SUBSCRIPTION_ID=$(azd env get-value AZURE_SUBSCRIPTION_ID)
+          AZURE_RESOURCE_GROUP_NAME=$(azd env get-value AZURE_RESOURCE_GROUP_NAME)
+          AZURE_PORTAL_URL="https://portal.azure.com/#@${AZURE_TENANT_ID}/resource/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${AZURE_RESOURCE_GROUP_NAME}"
+          if ! test -r $GITHUB_README_FILE; then
+          cat <<EOF >$GITHUB_README_FILE
+          # ${GITHUB_REPOSITORY##*/} (${AZDOPS_TEMPLATE})
+
+          |Resource|Location|
+          |-|-|
+          |AZD README (this file)|[${GITHUB_README_FILE}](${GITHUB_README_FILE#.github/})|
+          |AZD Inputs File|[${AZD_INPUTS_FILE}](${AZD_INPUTS_FILE#.github/})|
+          |AZD Remote File|[${AZD_REMOTE_FILE}](${AZD_REMOTE_FILE#.github/})|
+          |Azure Resource Group|[${AZURE_RESOURCE_GROUP_NAME}](${AZURE_PORTAL_URL})|
+          EOF
+          fi
+          echo "I: Updating $GITHUB_README_FILE and $AZD_REMOTE_FILE"
+          git add $GITHUB_README_FILE $AZD_REMOTE_FILE
+          if git diff --cached --exit-code --quiet; then
+            echo 'I: No changes to commit'
+          else
+            git config --global user.name 'github-actions[bot]'
+            git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+            git commit -m "Update $AZD_REMOTE_FILE"
+            git push
+          fi
+      - name: AZD Azure Client Secret
+        shell: bash
+        run: |
+          set -x
+          if test -n "$AZURE_CLIENT_SECRET"; then
+            ./azdops.sh secret
+          fi
+        env:
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
