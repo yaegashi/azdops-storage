@@ -51,7 +51,7 @@ set_keyvault_policy() {
 	UPN=$(run az account show --query user.name -o tsv)
 	case "$UPN" in
 	*@*) run az keyvault set-policy -n "$1" --secret-permissions all purge --certificate-permissions all purge --upn $UPN -o none ;;
-	*) run az keyvault set-policy -n "$1" --secret-permissions all purge --certificate-permissions all purge --object-id $UPN -o none ;;
+	*) run az keyvault set-policy -n "$1" --secret-permissions all purge --certificate-permissions all purge --spn $UPN -o none ;;
 	esac
 }
 
@@ -94,7 +94,6 @@ cmd_secret() {
 		msg "E: AZD_REMOTE_ENV_KEY_VAULT_NAME is not set"
 		exit 1
 	fi
-	set_keyvault_policy $AZD_REMOTE_ENV_KEY_VAULT_NAME
 	if test "$1" != "reset"; then
 		PASSWORD=$(run az keyvault secret show --vault-name $AZD_REMOTE_ENV_KEY_VAULT_NAME --name "AZURE-CLIENT-SECRET-${AZURE_CLIENT_ID}" --query value -o tsv || true)
 		if test -n "$PASSWORD"; then
