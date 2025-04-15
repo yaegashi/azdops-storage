@@ -64,10 +64,7 @@ jobs:
             azd env refresh
           fi
           if test -z "$AZD_REMOTE_ENV_KEY_VAULT_NAME"; then
-            AZURE_KEY_VAULT_NAME=$(azd env get-value AZURE_KEY_VAULT_NAME)
-            az keyvault set-policy --name $AZURE_KEY_VAULT_NAME --object-id $AZURE_PRINCIPAL_ID --secret-permissions get list set
-            sleep 5
-            export AZD_REMOTE_ENV_KEY_VAULT_NAME=$AZURE_KEY_VAULT_NAME
+            export AZD_REMOTE_ENV_KEY_VAULT_NAME=$(azd env get-value AZURE_KEY_VAULT_NAME)
           fi
           mkdir -p "${AZD_REMOTE_FILE%/*}"
           cat <<EOF >$AZD_REMOTE_FILE

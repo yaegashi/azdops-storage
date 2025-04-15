@@ -74,6 +74,19 @@ module keyVaultAccessUserAssignedIdentity './core/security/keyvault-access.bicep
   }
 }
 
+module keyVaultAccessDeployment './core/security/keyvault-access.bicep' = {
+  name: 'keyVaultAccessDeployment'
+  scope: rg
+  params: {
+    keyVaultName: keyVault.outputs.name
+    principalId: principalId
+    permissions: {
+      secrets: ['list', 'get', 'set']
+      certificates: ['list', 'get', 'import']
+    }
+  }
+}
+
 module storageAccount 'core/storage/storage-account.bicep' = {
   name: 'storageAccount'
   scope: rg
