@@ -7,6 +7,24 @@
       },
       "location": {
         "value": "${AZURE_LOCATION}"
+      },
+      "principalId": {
+        "value": "${AZURE_PRINCIPAL_ID}"
+      },
+      "resourceGroupName": {
+        "value": "${AZURE_RESOURCE_GROUP_NAME}"
+      },
+      "storageAccountName": {
+        "value": "${AZURE_STORAGE_ACCOUNT_NAME}"
+      },
+      "storageAccountOwnerPrincipalId": {
+        "value": "${AZURE_STORAGE_ACCOUNT_OWNER_PRINCIPAL_ID}"
+      },
+      "githubRepositoryUrl": {
+        "value": "${GITHUB_REPOSITORY_URL}"
+      },
+      "githubActionsRunUrl": {
+        "value": "${GITHUB_ACTIONS_RUN_URL}"
       }
     }
 }
