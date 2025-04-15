@@ -84,16 +84,25 @@ cmd_auth() {
 
 cmd_secret() {
 	eval $(load_config .github/azdops)
+	if test -z "$AZD_REMOTE_ENV_KEY_VAULT_NAME"; then
+		msg "E: AZD_REMOTE_ENV_KEY_VAULT_NAME is not set"
+		exit 1
+	fi
+	UPN=$(run az account show --query user.name -o tsv)
+	run az keyvault set-policy -n $AZD_REMOTE_ENV_KEY_VAULT_NAME --secret-permissions all purge --certificate-permissions all purge --upn $UPN -o none
+	if test "$1" != "reset"; then
+		PASSWORD=$(run az keyvault secret show --vault-name $AZD_REMOTE_ENV_KEY_VAULT_NAME --name "AZURE-CLIENT-SECRET-${AZURE_CLIENT_ID}" --query value -o tsv || true)
+		if test -n "$PASSWORD"; then
+			msg "I: Secret is already set in the key vault"
+			exit 0
+		fi
+	fi
 	if test -n "$AZURE_CLIENT_SECRET"; then
-		msg "Using the secret in AZURE_CLIENT_SECRET"
+		msg "I: Set the secret in AZURE_CLIENT_SECRET"
 		PASSWORD=$AZURE_CLIENT_SECRET
 	else
-		msg "Using the secret from the key vault"
-		PASSWORD=$(run az keyvault secret show --vault-name $AZD_REMOTE_ENV_KEY_VAULT_NAME --name "AZURE-CLIENT-SECRET-${AZURE_CLIENT_ID}" --query value -o tsv || true)
-	fi
-	if test -z "$PASSWORD"; then
-		msg "Creating new secret for the app $AZURE_CLIENT_ID"
-		DISPLAY_NAME="$AZD_REMOTE_ENV_KEY_VAULT_NAME $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+		msg "I: Creating a new secret"
+		DISPLAY_NAME="$GITHUB_REPOSITORY $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 		PASSWORD=$(run az ad app credential reset --only-show-errors --id $AZURE_CLIENT_ID --append --display-name "$DISPLAY_NAME" --end-date 2299-12-31 --query password --output tsv)
 	fi
 	echo -n "$PASSWORD" | run az keyvault secret set --vault-name $AZD_REMOTE_ENV_KEY_VAULT_NAME --name "AZURE-CLIENT-SECRET-${AZURE_CLIENT_ID}" --file /dev/stdin -o none
@@ -121,10 +130,10 @@ cmd_help() {
 	msg "  --help,-h      - Show this help"
 	msg "  --no-prompt    - Do not ask for confirmation"
 	msg "Commands:"
-	msg "  auth   - Run \"az login\""
-	msg "  secret - Reset Azure client secret and save it in key vault"
-	msg "  env    - Set up AZD remote env"
-	msg "  clear  - Clear the azd remote env"
+	msg "  auth           - Run \"az login\""
+	msg "  secret [reset] - Save Azure client secret in the key vault"
+	msg "  env            - Set up AZD remote env"
+	msg "  clear          - Clear the azd remote env"
 	exit $1
 }
 
