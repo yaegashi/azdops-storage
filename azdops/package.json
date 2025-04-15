@@ -1,0 +1,11 @@
+{
+  "name": "azdops",
+  "version": "1.0.0",
+  "description": "AZD Ops CLI utilities",
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "bin": {
+    "load-yaml": "./load-yaml.js"
+  }
+}

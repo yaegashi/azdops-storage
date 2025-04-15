@@ -1,0 +1,25 @@
+# Microsoft Entra ID Application Registration for Azure Resource Deployment
+# Required permissions for this application registration:
+# - Owner role on Azure subscriptions (AZURE_SUBSCRIPTION_ID) to manage resources and role assignments
+# Grant this repository's workflow access to this application registration using either of the following methods:
+# - Create a federated credential in the application registration
+# - Create a client secret in the application registration and set it in AZURE_CLIENT_SECRET of the repository secrets
+AZURE_TENANT_ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+AZURE_CLIENT_ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# Target Azure Subscription and Region for Resource Deployment
+AZURE_SUBSCRIPTION_ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+AZURE_LOCATION: japaneast
+
+# Optional: Leave empty to use the default
+AZURE_PRINCIPAL_ID: ''
+
+# Optional: Leave empty to use the default
+AZURE_RESOURCE_GROUP_NAME: ''
+
+# Optional: Leave empty to use the default
+AZURE_STORAGE_ACCOUNT_NAME: ''
+
+# Optional: Leave empty to use the default
+AZURE_STORAGE_ACCOUNT_OWNER_PRINCIPAL_ID: ''
+
